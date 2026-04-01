@@ -26,7 +26,7 @@
 👉 **[點擊這裡開始遊戲](https://weddy1225-blip.github.io/AI-math03/)**
 
 ### 方法 B：本地執行
-1. 下載本專案中的 `index.html` (或 `alchemy_lab.html`)。
+1. 下載本專案中的 `index.html` 。
 2. 在你的電腦上雙擊該檔案，使用瀏覽器開啟即可。
 
 ## 🌟 專案亮點 (Highlights)
