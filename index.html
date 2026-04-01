@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>煉金術實驗室：分數平衡大師</title>
+    <style>
+        body { font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; background-color: #f4eee1; color: #4a3428; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        #game-container { background: #fff; padding: 40px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.15); width: 90%; max-width: 650px; border: 5px solid #8b5a2b; position: relative; }
+        h1 { color: #8b5a2b; text-align: center; border-bottom: 3px double #8b5a2b; padding-bottom: 15px; margin-top: 0; }
+        .stage-tag { background: #d4a017; color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; display: inline-block; margin-bottom: 10px; }
+        
+        /* 分數垂直排列樣式 */
+        .fraction-ui { display: inline-flex; flex-direction: column; vertical-align: middle; align-items: center; padding: 0 5px; font-weight: bold; line-height: 1.1; }
+        .frac-num { border-bottom: 2px solid #4a3428; padding: 0 3px; min-width: 20px; text-align: center; }
+        .frac-den { padding: 0 3px; min-width: 20px; text-align: center; }
+
+        #display-area { font-size: 1.3rem; line-height: 2.2; margin: 25px 0; min-height: 100px; text-align: center; }
+        
+        /* 輸入區樣式 */
+        .fraction-input-container { display: flex; flex-direction: column; align-items: center; gap: 5px; margin-top: 20px; }
+        .fraction-line-bold { width: 80px; height: 3px; background-color: #4a3428; border-radius: 2px; }
+        input[type="number"] { width: 70px; padding: 12px; font-size: 1.4rem; text-align: center; border: 2px solid #8b5a2b; border-radius: 8px; background: #fffaf0; }
+        
+        /* 選項樣式 */
+        .options-container { display: flex; justify-content: center; gap: 20px; margin: 20px 0; }
+        .opt-btn { background: #fdf2d5; border: 2px solid #d4a017; padding: 15px 30px; border-radius: 10px; cursor: pointer; font-size: 1.1rem; transition: 0.2s; }
+        .opt-btn:hover { background: #d4a017; color: white; }
+        .opt-btn.selected { background: #8b5a2b; color: white; border-color: #5d3a1a; }
+
+        button#action-btn { background-color: #8b5a2b; color: white; border: none; padding: 15px; font-size: 1.2rem; border-radius: 10px; cursor: pointer; width: 100%; margin-top: 20px; transition: 0.3s; font-weight: bold; }
+        button#action-btn:hover { background-color: #5d3a1a; transform: translateY(-2px); }
+        
+        /* 結算 */
+        #result-review { background: #f9f9f9; padding: 20px; border-radius: 10px; border: 1px solid #ddd; margin-top: 20px; max-height: 300px; overflow-y: auto; text-align: left; font-size: 0.95rem; }
+        .review-item { border-bottom: 1px solid #eee; padding: 10px 0; line-height: 1.8; }
+        .correct { color: #2d6a4f; font-weight: bold; }
+        .wrong { color: #a4161a; font-weight: bold; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <h1>🧪 煉金術實驗室</h1>
+    
+    <div id="start-screen">
+        <p style="font-size: 1.1rem; line-height: 1.7;">
+            「歡迎來到<b>煉金術實驗室</b>！你是實驗室的一員，今天要進行等級考驗了。請盡你所能，讓各項材料的數量都達到平衡吧！」
+        </p>
+        <button id="action-btn" onclick="startGame()">開始考驗</button>
+    </div>
+
+    <div id="game-screen" class="hidden">
+        <div id="stage-tag" class="stage-tag">階段一</div>
+        <div style="float: right; color: #8b5a2b;">題目：<span id="q-progress">1</span> / 6</div>
+        <div style="clear: both;"></div>
+        
+        <div id="display-area"></div>
+        
+        <div id="compare-ui" class="options-container hidden">
+            <div class="opt-btn" onclick="selectOption('左邊')">左邊比較重</div>
+            <div class="opt-btn" onclick="selectOption('右邊')">右邊比較重</div>
+        </div>
+
+        <div id="calc-ui" class="fraction-input-container hidden">
+            <input type="number" id="num-in" placeholder="分子">
+            <div class="fraction-line-bold"></div>
+            <input type="number" id="den-in" placeholder="分母">
+        </div>
+
+        <button id="action-btn" onclick="submitAnswer()">提交答案</button>
+    </div>
+
+    <div id="end-screen" class="hidden">
+        <h2 id="rank-title" style="text-align: center; color: #d4a017;">等級公告</h2>
+        <div id="final-stats" style="text-align: center; font-size: 1.1rem;"></div>
+        <div id="final-comment" style="text-align: center; border: 2px dashed #d4a017; padding: 15px; margin: 20px 0; font-size: 1.2rem; color: #8b5a2b; line-height: 1.6;"></div>
+        <h3>題目回顧與解答：</h3>
+        <div id="result-review"></div>
+        <button id="action-btn" onclick="location.reload()">重新挑戰</button>
+    </div>
+</div>
+
+<script>
+    const rawBank = {
+        1: [
+            { d: "左盤 [3/5] 瓶龍之血 vs 右盤 [1/5] 瓶，哪邊重？", a: "左邊" },
+            { d: "左盤 [7/10] 瓶星辰砂 vs 右盤 [9/10] 瓶，哪邊重？", a: "右邊" },
+            { d: "左盤 [11/12] 瓶重力粉 vs 右盤 [5/12] 瓶，哪邊重？", a: "左邊" },
+            { d: "左盤 [4/7] 瓶隱身藥水 vs 右盤 [6/7] 瓶，哪邊重？", a: "右邊" },
+            { d: "左盤 [2/4] 瓶火焰草 vs 右盤 [3/4] 瓶，哪邊重？", a: "右邊" },
+            { d: "左盤 [5/9] 瓶月光精華 vs 右盤 [2/9] 瓶，哪邊重？", a: "左邊" },
+            { d: "左盤 [6/11] 瓶速度靈藥 vs 右盤 [9/11] 瓶，哪邊重？", a: "右邊" },
+            { d: "左盤 [8/15] 瓶寒冰粉 vs 右盤 [13/15] 瓶，哪邊重？", a: "右邊" },
+            { d: "左盤 [5/6] 瓶勇氣果汁 vs 右盤 [1/6] 瓶，哪邊重？", a: "左邊" },
+            { d: "左盤 [3/13] 瓶智慧泉水 vs 右盤 [7/13] 瓶，哪邊重？", a: "右邊" }
+        ],
+        2: [
+            { d: "左盤 [2/6]，右盤 [5/6]。左盤需「增加」多少才平衡？", n: 3, de: 6 },
+            { d: "左盤 [9/10]，右盤 [3/10]。左盤需「減少」多少才平衡？", n: 6, de: 10 },
+            { d: "左盤 [1/4]，右盤 [3/4]。左盤需「增加」多少才平衡？", n: 2, de: 4 },
+            { d: "左盤 [11/12]，右盤 [7/12]。左盤需「減少」多少才平衡？", n: 4, de: 12 },
+            { d: "左盤 [3/9]，右盤 [8/9]。左盤需「增加」多少才平衡？", n: 5, de: 9 },
+            { d: "左盤 [5/7]，右盤 [2/7]。左盤需「減少」多少才平衡？", n: 3, de: 7 },
+            { d: "左盤 [4/11]，右盤 [10/11]。左盤需「增加」多少才平衡？", n: 6, de: 11 },
+            { d: "左盤 [12/15]，右盤 [8/15]。左盤需「減少」多少才平衡？", n: 4, de: 15 },
+            { d: "左盤 [2/5]，右盤 [4/5]。左盤需「增加」多少才平衡？", n: 2, de: 5 },
+            { d: "左盤 [6/8]，右盤 [1/8]。左盤需「減少」多少才平衡？", n: 5, de: 8 }
+        ],
+        3: [
+            { d: "左盤是 [1]。右盤目前 [3/8]，還要加多少才等於 1？", n: 5, de: 8 },
+            { d: "燒杯容量是 [1]。已倒入 [1/5] 和 [2/5]，還能加多少裝滿？", n: 2, de: 5 },
+            { d: "左盤是 [1]。右盤目前 [7/12]，還要加多少才平衡？", n: 5, de: 12 },
+            { d: "總量是 [1]。已倒入 [2/7] 和 [4/7]，還差多少裝滿？", n: 1, de: 7 },
+            { d: "左盤是 [1]。右盤目前 [1/6]，還要加多少才平衡？", n: 5, de: 6 },
+            { d: "總量是 [1]。已倒入 [3/10] 和 [4/10]，還能加多少裝滿？", n: 3, de: 10 },
+            { d: "左盤是 [1]。右盤目前 [5/9]，還要加多少才平衡？", n: 4, de: 9 },
+            { d: "總量是 [1]。已倒入 [1/4] 和 [2/4]，還差多少裝滿？", n: 1, de: 4 },
+            { d: "左盤是 [1]。右盤目前 [6/11]，還要加多少才平衡？", n: 5, de: 11 },
+            { d: "燒杯總量 [1]。已倒入 [2/12] 和 [9/12]，還能加多少？", n: 1, de: 12 }
+        ]
+    };
+
+    let questions = [];
+    let curIdx = 0;
+    let correctCount = 0;
+    let selectedOpt = "";
+    let logs = [];
+
+    // 將 [n/d] 標記轉化為垂直分數 HTML
+    function formatTextWithFractions(text) {
+        return text.replace(/\[(\d+)\/(\d+)\]/g, (match, n, d) => {
+            return `<span class="fraction-ui"><span class="frac-num">${n}</span><span class="frac-den">${d}</span></span>`;
+        }).replace(/\[1\]/g, '<span style="font-size:1.5rem; font-weight:bold; padding:0 5px;">1</span>');
+    }
+
+    function startGame() {
+        for(let s=1; s<=3; s++) {
+            let pool = [...rawBank[s]].sort(() => Math.random() - 0.5);
+            questions.push({...pool[0], stage: s}, {...pool[1], stage: s});
+        }
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('game-screen').classList.remove('hidden');
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        let q = questions[curIdx];
+        document.getElementById('q-progress').innerText = curIdx + 1;
+        document.getElementById('display-area').innerHTML = formatTextWithFractions(q.d);
+        const tags = ["重量觀測", "精準調配", "終極合成"];
+        document.getElementById('stage-tag').innerText = `階段${q.stage}：${tags[q.stage-1]}`;
+
+        if(q.stage === 1) {
+            document.getElementById('compare-ui').classList.remove('hidden');
+            document.getElementById('calc-ui').classList.add('hidden');
+        } else {
+            document.getElementById('compare-ui').classList.add('hidden');
+            document.getElementById('calc-ui').classList.remove('hidden');
+        }
+        selectedOpt = "";
+        document.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+        document.getElementById('num-in').value = "";
+        document.getElementById('den-in').value = "";
+    }
+
+    function selectOption(val) {
+        selectedOpt = val;
+        document.querySelectorAll('.opt-btn').forEach(b => {
+            b.classList.toggle('selected', b.innerText.includes(val));
+        });
+    }
+
+    function submitAnswer() {
+        let q = questions[curIdx];
+        let isRight = false;
+        let uAns = "";
+        let rAns = "";
+
+        if(q.stage === 1) {
+            if(!selectedOpt) { alert("請選擇一個方向！"); return; }
+            uAns = selectedOpt;
+            rAns = q.a;
+            isRight = (uAns === rAns);
+        } else {
+            let n = document.getElementById('num-in').value;
+            let d = document.getElementById('den-in').value;
+            if(!n || !d) { alert("請輸入完整的分子與分母！"); return; }
+            uAns = `[${n}/${d}]`;
+            rAns = `[${q.n}/${q.de}]`;
+            isRight = (parseInt(n) === q.n && parseInt(d) === q.de);
+        }
+
+        if(isRight) correctCount++;
+        logs.push({ q: q.d, u: uAns, r: rAns, ok: isRight });
+
+        curIdx++;
+        if(curIdx < 6) {
+            loadQuestion();
+        } else {
+            showResult();
+        }
+    }
+
+    function showResult() {
+        document.getElementById('game-screen').classList.add('hidden');
+        document.getElementById('end-screen').classList.remove('hidden');
+        let score = Math.round((correctCount / 6) * 100);
+        document.getElementById('final-stats').innerHTML = `答對題數：${correctCount} / 6 <br> 獲得分數：<strong>${score} 分</strong>`;
+
+        let title = "";
+        let comment = "";
+        if(correctCount === 6) {
+            title = "傳奇煉金導師";
+            comment = "完美達到平衡！你對分數的掌握如同魔法般精準。獲得「黃金勳章」，實驗室將以你的名字命名新藥水！";
+        } else if(correctCount >= 4) {
+            title = "資深藥劑師";
+            comment = "表現優異！天秤雖然晃動了一下，但最終穩住了。獲得「銀色勳章」，你已經具備大師的潛力！";
+        } else {
+            title = "實驗室學徒";
+            comment = "加油！雖然藥水溢出了一點，但失敗是成功的基石。獲得「銅色勳章」與「新手手冊」，再多練習幾次吧！";
+        }
+
+        document.getElementById('rank-title').innerText = `等級公告：${title}`;
+        document.getElementById('final-comment').innerText = comment;
+
+        let reviewHtml = "";
+        logs.forEach((item, idx) => {
+            reviewHtml += `<div class="review-item"><strong>第 ${idx+1} 題：</strong> ${formatTextWithFractions(item.q)}<br> 你的答案：${formatTextWithFractions(item.u)} (${item.ok ? '<span class="correct">正確</span>' : '<span class="wrong">錯誤</span>'})<br> 正確解答：${formatTextWithFractions(item.r)} </div>`;
+        });
+        document.getElementById('result-review').innerHTML = reviewHtml;
+    }
+</script>
+
+</body>
+</html>
